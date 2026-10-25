@@ -87,13 +87,11 @@ class CourseDetailView(generic.DetailView):
 def enroll(request, course_id):
     course = get_object_or_404(Course, pk=course_id)
     user = request.user
-
     is_enrolled = check_if_enrolled(user, course)
     if not is_enrolled and user.is_authenticated:
         Enrollment.objects.create(user=user, course=course, mode='honor')
         course.total_enrollment += 1
         course.save()
-
     return HttpResponseRedirect(reverse(viewname='onlinecourse:course_details', args=(course.id,)))
 
 
@@ -111,13 +109,11 @@ def submit(request, course_id):
     user = request.user
     course = get_object_or_404(Course, pk=course_id)
     enrollment = Enrollment.objects.get(user=user, course=course)
-
     submission = Submission.objects.create(enrollment=enrollment)
     submitted_answers = extract_answers(request)
     for choice_id in submitted_answers:
         choice = Choice.objects.get(pk=choice_id)
         submission.choices.add(choice)
-
     submission.save()
     return HttpResponseRedirect(reverse(viewname='onlinecourse:show_exam_result',
                                         args=(course_id, submission.id,)))
@@ -143,6 +139,7 @@ def show_exam_result(request, course_id, submission_id):
             total_score += question.grade
 
     grade = int((total_score / total_grade) * 100) if total_grade > 0 else 0
+    possible = total_grade
 
     context = {
         'course': course,
@@ -150,6 +147,7 @@ def show_exam_result(request, course_id, submission_id):
         'selected_ids': selected_ids,
         'questions': questions,
         'total_score': total_score,
-        'grade': grade
+        'grade': grade,
+        'possible': possible,
     }
     return render(request, 'onlinecourse/exam_result_bootstrap.html', context)
