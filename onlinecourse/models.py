@@ -1,6 +1,5 @@
 import sys
 from django.utils.timezone import now
-from django.utils import timezone
 try:
     from django.db import models
 except Exception:
@@ -8,10 +7,15 @@ except Exception:
     sys.exit()
 
 from django.conf import settings
+import uuid
 
 
+# Instructor model
 class Instructor(models.Model):
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+    )
     full_time = models.BooleanField(default=True)
     total_learners = models.IntegerField()
 
@@ -19,8 +23,12 @@ class Instructor(models.Model):
         return self.user.username
 
 
+# Learner model
 class Learner(models.Model):
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+    )
     STUDENT = 'student'
     DEVELOPER = 'developer'
     DATA_SCIENTIST = 'data_scientist'
@@ -31,13 +39,19 @@ class Learner(models.Model):
         (DATA_SCIENTIST, 'Data Scientist'),
         (DATABASE_ADMIN, 'Database Admin')
     ]
-    occupation = models.CharField(null=False, max_length=20, choices=OCCUPATION_CHOICES, default=STUDENT)
+    occupation = models.CharField(
+        null=False,
+        max_length=20,
+        choices=OCCUPATION_CHOICES,
+        default=STUDENT
+    )
     social_link = models.URLField(max_length=200)
 
     def __str__(self):
-        return self.user.username + "," + self.occupation
+        return self.user.username + "," +                self.occupation
 
 
+# Course model
 class Course(models.Model):
     name = models.CharField(null=False, max_length=100, default='online course')
     image = models.ImageField(upload_to='course_images/')
@@ -46,26 +60,33 @@ class Course(models.Model):
     instructors = models.ManyToManyField(Instructor)
     users = models.ManyToManyField(settings.AUTH_USER_MODEL, through='Enrollment')
     total_enrollment = models.IntegerField(default=0)
+    is_enrolled = False
 
     def __str__(self):
-        return self.name
+        return "Name: " + self.name + "," +                "Description: " + self.description
 
 
+# Lesson model
 class Lesson(models.Model):
-    title = models.CharField(max_length=200, default='title')
+    title = models.CharField(max_length=200, default="title")
     order = models.IntegerField(default=0)
-    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='lessons')
+    course = models.ForeignKey(Course, on_delete=models.CASCADE)
     content = models.TextField()
 
     def __str__(self):
         return self.title
 
 
+# Enrollment model
 class Enrollment(models.Model):
     AUDIT = 'audit'
     HONOR = 'honor'
     BETA = 'BETA'
-    COURSE_MODES = [(AUDIT, 'Audit'), (HONOR, 'Honor'), (BETA, 'BETA')]
+    COURSE_MODES = [
+        (AUDIT, 'Audit'),
+        (HONOR, 'Honor'),
+        (BETA, 'BETA')
+    ]
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     course = models.ForeignKey(Course, on_delete=models.CASCADE)
     date_enrolled = models.DateField(default=now)
@@ -76,35 +97,38 @@ class Enrollment(models.Model):
         return self.user.username + ", " + self.course.name
 
 
+# Question model  -- ForeignKey to Course, field = question_text
 class Question(models.Model):
-    lesson = models.ForeignKey(Lesson, related_name='questions', on_delete=models.CASCADE)
-    question_text = models.CharField(max_length=255)
+    course = models.ForeignKey(Course, null=True, on_delete=models.SET_NULL)
+    question_text = models.CharField(max_length=200)
     grade = models.IntegerField(default=50)
 
     def __str__(self):
-        return "Q" + str(self.id) + ": " + self.question_text
+        return self.question_text
 
     def is_get_score(self, selected_ids):
-        all_correct = self.choice_set.filter(is_correct=True).count()
+        all_answers = self.choice_set.filter(is_correct=True).count()
         selected_correct = self.choice_set.filter(is_correct=True, id__in=selected_ids).count()
         selected_total = self.choice_set.filter(id__in=selected_ids).count()
-        return all_correct == selected_correct == selected_total
+        if all_answers == selected_correct and selected_correct == selected_total:
+            return True
+        return False
 
 
+# Choice model  -- field = choice_text
 class Choice(models.Model):
-    question = models.ForeignKey(Question, on_delete=models.CASCADE)
-    choice_text = models.CharField(max_length=255)
+    question = models.ForeignKey(Question, null=True, on_delete=models.SET_NULL)
+    choice_text = models.CharField(max_length=200)
     is_correct = models.BooleanField(default=False)
 
     def __str__(self):
         return self.choice_text
 
 
+# Submission model  -- enrollment FK + choices M2M
 class Submission(models.Model):
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-    question = models.ForeignKey(Question, on_delete=models.CASCADE)
-    selected_choice = models.ForeignKey(Choice, on_delete=models.CASCADE)
-    submitted_at = models.DateTimeField(default=timezone.now)
+    enrollment = models.ForeignKey(Enrollment, on_delete=models.CASCADE)
+    choices = models.ManyToManyField(Choice)
 
     def __str__(self):
-        return self.user.username + " - Q" + str(self.question.id) + " - " + self.selected_choice.choice_text
+        return self.enrollment.user.username + ", " + self.enrollment.course.name

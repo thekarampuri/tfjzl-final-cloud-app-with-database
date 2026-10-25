@@ -1,6 +1,6 @@
 from django.shortcuts import render
 from django.http import HttpResponseRedirect
-from .models import Course, Enrollment, Lesson, Question, Choice, Submission
+from .models import Course, Enrollment, Question, Choice, Submission
 from django.contrib.auth.models import User
 from django.shortcuts import get_object_or_404, render, redirect
 from django.urls import reverse
@@ -87,11 +87,13 @@ class CourseDetailView(generic.DetailView):
 def enroll(request, course_id):
     course = get_object_or_404(Course, pk=course_id)
     user = request.user
+
     is_enrolled = check_if_enrolled(user, course)
     if not is_enrolled and user.is_authenticated:
         Enrollment.objects.create(user=user, course=course, mode='honor')
         course.total_enrollment += 1
         course.save()
+
     return HttpResponseRedirect(reverse(viewname='onlinecourse:course_details', args=(course.id,)))
 
 
@@ -109,11 +111,13 @@ def submit(request, course_id):
     user = request.user
     course = get_object_or_404(Course, pk=course_id)
     enrollment = Enrollment.objects.get(user=user, course=course)
+
     submission = Submission.objects.create(enrollment=enrollment)
     submitted_answers = extract_answers(request)
     for choice_id in submitted_answers:
         choice = Choice.objects.get(pk=choice_id)
         submission.choices.add(choice)
+
     submission.save()
     return HttpResponseRedirect(reverse(viewname='onlinecourse:show_exam_result',
                                         args=(course_id, submission.id,)))
@@ -124,10 +128,7 @@ def show_exam_result(request, course_id, submission_id):
     submission = get_object_or_404(Submission, pk=submission_id)
     selected_ids = submission.choices.values_list('id', flat=True)
 
-    questions = []
-    for lesson in course.lesson_set.all():
-        for question in lesson.question_set.all():
-            questions.append(question)
+    questions = course.question_set.all()
 
     total_score = 0
     total_grade = 0
