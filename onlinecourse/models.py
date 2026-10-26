@@ -97,14 +97,24 @@ class Enrollment(models.Model):
         return self.user.username + ", " + self.course.name
 
 
-# Question model  -- ForeignKey to Course, field = question_text
+# Question model  -- ForeignKey to Course & Lesson, field = question_text
 class Question(models.Model):
-    course = models.ForeignKey(Course, null=True, on_delete=models.SET_NULL)
-    question_text = models.CharField(max_length=200)
+    course = models.ForeignKey(Course, null=True, blank=True, on_delete=models.CASCADE)
+    lesson = models.ForeignKey(Lesson, null=True, blank=True, on_delete=models.CASCADE)
+    question_text = models.CharField(max_length=500)
     grade = models.IntegerField(default=50)
 
     def __str__(self):
         return self.question_text
+
+    @property
+    def content(self):
+        return self.question_text
+
+    def save(self, *args, **kwargs):
+        if self.lesson and not self.course:
+            self.course = self.lesson.course
+        super().save(*args, **kwargs)
 
     def is_get_score(self, selected_ids):
         all_answers = self.choice_set.filter(is_correct=True).count()
@@ -117,11 +127,15 @@ class Question(models.Model):
 
 # Choice model  -- field = choice_text
 class Choice(models.Model):
-    question = models.ForeignKey(Question, null=True, on_delete=models.SET_NULL)
-    choice_text = models.CharField(max_length=200)
+    question = models.ForeignKey(Question, null=True, on_delete=models.CASCADE)
+    choice_text = models.CharField(max_length=500)
     is_correct = models.BooleanField(default=False)
 
     def __str__(self):
+        return self.choice_text
+
+    @property
+    def content(self):
         return self.choice_text
 
 
@@ -132,3 +146,4 @@ class Submission(models.Model):
 
     def __str__(self):
         return self.enrollment.user.username + ", " + self.enrollment.course.name
+

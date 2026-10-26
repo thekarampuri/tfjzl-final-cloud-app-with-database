@@ -110,13 +110,18 @@ def extract_answers(request):
 def submit(request, course_id):
     user = request.user
     course = get_object_or_404(Course, pk=course_id)
-    enrollment = Enrollment.objects.get(user=user, course=course)
+    enrollment = Enrollment.objects.filter(user=user, course=course).first()
+    if not enrollment:
+        enrollment = Enrollment.objects.create(user=user, course=course, mode='honor')
+        course.total_enrollment += 1
+        course.save()
 
     submission = Submission.objects.create(enrollment=enrollment)
     submitted_answers = extract_answers(request)
     for choice_id in submitted_answers:
-        choice = Choice.objects.get(pk=choice_id)
-        submission.choices.add(choice)
+        choice = Choice.objects.filter(pk=choice_id).first()
+        if choice:
+            submission.choices.add(choice)
 
     submission.save()
     return HttpResponseRedirect(reverse(viewname='onlinecourse:show_exam_result',
@@ -126,16 +131,18 @@ def submit(request, course_id):
 def show_exam_result(request, course_id, submission_id):
     course = get_object_or_404(Course, pk=course_id)
     submission = get_object_or_404(Submission, pk=submission_id)
-    selected_ids = submission.choices.values_list('id', flat=True)
+    selected_ids = list(submission.choices.values_list('id', flat=True))
 
     questions = course.question_set.all()
+    if not questions.exists():
+        questions = Question.objects.filter(lesson__course=course).distinct()
 
     total_score = 0
     total_grade = 0
     for question in questions:
         total_grade += question.grade
         question_selected_ids = [sid for sid in selected_ids
-                                  if Choice.objects.get(pk=sid).question == question]
+                                  if Choice.objects.filter(pk=sid, question=question).exists()]
         if question.is_get_score(question_selected_ids):
             total_score += question.grade
 
@@ -152,3 +159,4 @@ def show_exam_result(request, course_id, submission_id):
         'possible': possible,
     }
     return render(request, 'onlinecourse/exam_result_bootstrap.html', context)
+

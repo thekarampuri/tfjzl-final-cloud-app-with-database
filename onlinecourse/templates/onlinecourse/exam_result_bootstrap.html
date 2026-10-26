@@ -39,13 +39,13 @@
 <div class="container-fluid py-4">
     {% if grade >= 70 or total_score >= 70 %}
     <div class="alert alert-success shadow-sm" role="alert">
-        <h3 class="alert-heading font-weight-bold">🎉 Congratulations, {{ user.first_name }}!</h3>
+        <h3 class="alert-heading font-weight-bold">🎉 Congratulations, {{ user.first_name|default:user.username }}!</h3>
         <p class="lead mb-0">You have successfully passed the exam for <strong>{{ course.name }}</strong> with a score of <strong>{{ grade }}%</strong>!</p>
     </div>
     {% else %}
     <div class="alert alert-danger shadow-sm" role="alert">
         <h3 class="alert-heading font-weight-bold">Exam Result</h3>
-        <p class="lead mb-0">Sorry, {{ user.first_name }}. You scored <strong>{{ grade }}%</strong>. A passing score of 70% or higher is required.</p>
+        <p class="lead mb-0">Sorry, {{ user.first_name|default:user.username }}. You scored <strong>{{ grade }}%</strong>. A passing score of 70% or higher is required.</p>
     </div>
     <a class="btn btn-primary my-2" href="{% url 'onlinecourse:course_details' course.id %}">🔄 Retake Exam</a>
     {% endif %}
@@ -55,7 +55,7 @@
         {% for question in questions %}
         <div class="card mt-3 shadow-sm">
             <div class="card-header font-weight-bold bg-light">
-                Question {{ forloop.counter }}: {{ question.content }}
+                Question {{ forloop.counter }}: {{ question.question_text }}
                 <span class="badge badge-info float-right">{{ question.grade }} points</span>
             </div>
             <div class="card-body">
@@ -63,20 +63,20 @@
                     {% if choice.id in selected_ids %}
                         {% if choice.is_correct %}
                             <p class="text-success font-weight-bold mb-1">
-                                ✅ {{ choice.content }} <span class="badge badge-success">Correct Answer - Selected</span>
+                                ✅ {{ choice.choice_text }} <span class="badge badge-success">Correct Answer - Selected</span>
                             </p>
                         {% else %}
                             <p class="text-danger font-weight-bold mb-1">
-                                ❌ {{ choice.content }} <span class="badge badge-danger">Wrong Answer - Selected</span>
+                                ❌ {{ choice.choice_text }} <span class="badge badge-danger">Wrong Answer - Selected</span>
                             </p>
                         {% endif %}
                     {% else %}
                         {% if choice.is_correct %}
                             <p class="text-success mb-1">
-                                <b>Correct Answer:</b> {{ choice.content }}
+                                <b>Correct Answer:</b> {{ choice.choice_text }}
                             </p>
                         {% else %}
-                            <p class="text-muted mb-1">{{ choice.content }}</p>
+                            <p class="text-muted mb-1">{{ choice.choice_text }}</p>
                         {% endif %}
                     {% endif %}
                 {% endfor %}
